@@ -1,0 +1,23 @@
+default_interval: 60   # minutes; use 1440 for daily
+
+tickers:
+  SPY:
+    name: "S&P 500 ETF"
+    yf_symbol: "SPY"
+    options_eligible: true
+  QQQ:
+    name: "Nasdaq 100 ETF"
+    yf_symbol: "QQQ"
+    options_eligible: true
+  AAPL:
+    name: "Apple"
+    yf_symbol: "AAPL"
+    options_eligible: true
+  TSLA:
+    name: "Tesla"
+    yf_symbol: "TSLA"
+    options_eligible: true
+  NVDA:
+    name: "NVIDIA"
+    yf_symbol: "NVDA"
+    options_eligible: true

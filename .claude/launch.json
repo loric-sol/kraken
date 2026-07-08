@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "crypto-paper-run",
+      "runtimeExecutable": ".venv/bin/kraken-ew",
+      "runtimeArgs": ["paper-run", "--pairs", "XBTUSD,ETHUSD,SOLUSD,AVAXUSD,XDGUSD", "--interval", "60"],
+      "port": null
+    },
+    {
+      "name": "stock-options-run",
+      "runtimeExecutable": ".venv/bin/kraken-ew",
+      "runtimeArgs": ["stock-run", "--tickers", "SPY,QQQ,AAPL,TSLA,NVDA", "--interval", "1440"],
+      "port": null
+    },
+    {
+      "name": "dashboard",
+      "runtimeExecutable": ".venv/bin/streamlit",
+      "runtimeArgs": ["run", "app.py", "--server.headless", "true"],
+      "port": 8501
+    }
+  ]
+}

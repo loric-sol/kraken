@@ -1,0 +1,21 @@
+# Market -> Kraken altname mapping.
+# Verified against Kraken's public /0/public/AssetPairs endpoint.
+# Re-check periodically with `python scripts/verify_pairs.py` (Kraken does
+# occasionally rename/relist pairs).
+#
+# interval is in minutes, per Kraken's OHLC endpoint (1, 5, 15, 30, 60, 240,
+# 1440, 10080, 21600). Default 60 = 1h candles.
+
+default_interval: 60
+
+pairs:
+  BTCUSDT:
+    kraken_pair: XBTUSD
+  ETHUSDT:
+    kraken_pair: ETHUSD
+  SOLUSDT:
+    kraken_pair: SOLUSD
+  AVAXUSDT:
+    kraken_pair: AVAXUSD
+  DOGEUSDT:
+    kraken_pair: XDGUSD

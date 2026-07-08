@@ -1,0 +1,16 @@
+# Phase 1 MVP requirements.
+# Tested with Python 3.10 (project venv created via:
+#   /Library/Frameworks/Python.framework/Versions/3.10/bin/python3.10 -m venv .venv)
+#
+# If you must run on Python 3.9, vectorbt>=0.26 will NOT install. Use instead:
+#   vectorbt==0.25.5
+# (last release supporting 3.9). All other pins below remain compatible.
+
+requests>=2.31
+pandas>=2.0
+numpy>=1.24
+duckdb>=0.10
+pyyaml>=6.0
+vectorbt>=0.26
+typer>=0.9
+pytest>=7.4

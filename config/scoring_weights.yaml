@@ -1,0 +1,27 @@
+# Composite wave score weights. Must sum to 1.0.
+# Each component is scored 0-100 before weighting.
+weights:
+  wave_validity: 0.30     # impulse/ABC rule-based pattern confidence
+  fib_confluence: 0.20    # how many fib retracement/extension sets cluster near current price
+  momentum: 0.15          # RSI/MACD/StochRSI alignment + divergence
+  trend: 0.15             # EMA 20/50/200 alignment and slope
+  volume: 0.10            # VWAP/OBV confirmation
+  structure: 0.10         # HH/HL/LH/LL, BOS/CHoCH alignment
+
+# Wave detection tuning
+pivots:
+  zigzag_threshold_pct: 5.0
+  fractal_window: 2
+
+fibonacci:
+  retracement_ratios: [0.236, 0.382, 0.5, 0.618, 0.786]
+  extension_ratios: [1.272, 1.618, 2.0, 2.618]
+  confluence_tolerance_pct: 0.5
+
+indicators:
+  ema_periods: [20, 50, 200]
+  rsi_period: 14
+  macd: [12, 26, 9]
+  stoch_rsi_period: 14
+  atr_period: 14
+  bollinger: [20, 2.0]

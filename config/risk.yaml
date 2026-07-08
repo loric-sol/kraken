@@ -1,0 +1,24 @@
+# Risk management config for paper trading (Phase 1) and, eventually, live trading.
+
+position_sizing:
+  risk_per_trade_pct: 5.0     # % of portfolio risked per trade
+  max_open_positions: 3
+  max_position_pct: 50.0      # max % of portfolio in a single position
+
+stop_loss:
+  method: atr                 # one of: atr, wave_invalidation, structure, swing
+  atr_multiplier: 1.5
+
+take_profit:
+  targets_r_multiples: [1.0, 2.0, 3.0]   # TP1/TP2/TP3 expressed as R multiples
+  trailing_stop_after_r: 1.0
+
+score_thresholds:
+  long_entry: 70
+  short_entry: 70
+  exit: 40
+
+circuit_breakers:
+  max_daily_drawdown_pct: 3.0
+  max_weekly_drawdown_pct: 7.0
+  max_monthly_drawdown_pct: 12.0

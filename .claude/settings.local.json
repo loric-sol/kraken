@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.kraken.com)",
+      "Bash(curl --proto '=https' --tlsv1.2 -LsSf https://github.com/krakenfx/kraken-cli/releases/latest/download/kraken-cli-installer.sh)",
+      "Bash(sh)",
+      "Bash(cat \"/Users/dhoua/Library/Application Support/Claude/claude_desktop_config.json\" 2>/dev/null || echo \"NOT FOUND\")",
+      "Bash(which kraken; ls -la $HOME/.cargo/bin/kraken)",
+      "Bash(.venv/bin/python -m kraken_ew.data.fetch_history --pair XBTUSD --interval 60 --days 400)",
+      "Bash(.venv/bin/python -c ' *)",
+      "Bash(.venv/bin/python -m pytest -q)",
+      "Bash(.venv/bin/pip install *)",
+      "Bash(.venv/bin/python -c \"import vectorbt as vbt; print\\(vbt.__version__\\)\")",
+      "Bash(.venv/bin/python -m kraken_ew.backtest.run_backtest --pairs XBTUSD,ETHUSD --interval 1440)",
+      "Bash(.venv/bin/python -m kraken_ew.live.paper_runner --pairs XBTUSD,ETHUSD --interval 60 --once)",
+      "Bash(.venv/bin/python -m kraken_ew.cli score --pair XBTUSD --interval 1440)",
+      "Bash(.venv/bin/kraken-ew --help)",
+      "Bash(.venv/bin/python -m kraken_ew.cli backtest --pairs XBTUSD,ETHUSD --interval 1440)",
+      "Bash(kraken paper *)",
+      "Bash(kraken ticker *)",
+      "WebSearch",
+      "mcp__9e9049d3-5480-4bc3-b17c-f95932f036e9__get_equity_orders",
+      "mcp__9e9049d3-5480-4bc3-b17c-f95932f036e9__review_equity_order",
+      "mcp__9e9049d3-5480-4bc3-b17c-f95932f036e9__place_equity_order",
+      "Bash(kraken pairs *)",
+      "Bash(python3 -c ' *)",
+      "mcp__Massive_Market_Data__query_data",
+      "mcp__Massive_Market_Data__call_api",
+      "mcp__scheduled-tasks__list_scheduled_tasks",
+      "mcp__9e9049d3-5480-4bc3-b17c-f95932f036e9__get_equity_quotes",
+      "mcp__9e9049d3-5480-4bc3-b17c-f95932f036e9__get_equity_historicals",
+      "Bash(ls -la src/kraken_ew/data/massive_rest.py)",
+      "Bash(ls -la src/kraken_ew/backtest/walk_forward.py)",
+      "Bash(grep -iE 'massive|polygon' .env .env.example)",
+      "Bash(cd \"/Users/dhoua/Kraken Code 1\" && ls && echo \"---\" && ls logs/ 2>/dev/null && echo \"---venv---\" && ls .venv/bin/python 2>/dev/null && echo \"---config---\" && find . -iname \"*.yaml\" -not -path \"*/node_modules/*\" 2>/dev/null | head -20)",
+      "Bash(curl -s http://localhost:8501/_stcore/health)",
+      "WebFetch(domain:www.sec.gov)",
+      "Bash(curl -s -A \"kraken-ew-research dhouatchessi@gmail.com\" \"https://www.sec.gov/Archives/edgar/data/1816581/000162828026013313/oust-20251231.htm\" -o oust_10k.htm)"
+    ]
+  }
+}

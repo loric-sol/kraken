@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+data/*.duckdb
+logs/decisions/*.json
+logs/decisions/*.md
+logs/*.json
+logs/*.md
+.env
+*.egg-info/
+.ipynb_checkpoints/
+.DS_Store

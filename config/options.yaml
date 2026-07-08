@@ -1,0 +1,22 @@
+# Options-specific configuration
+
+selection:
+  dte_min: 21            # minimum days to expiry
+  dte_max: 45            # maximum days to expiry (sweet spot for directional)
+  delta_target: 0.45     # target delta — near ATM for high delta exposure
+  delta_tolerance: 0.10  # accept delta in [target - tol, target + tol]
+  prefer_weekly: false   # prefer monthly expirations (more liquid)
+
+sizing:
+  max_contracts: 10          # hard cap per position
+  max_position_pct: 25.0     # max % of portfolio per position (matches risk.yaml)
+  premium_risk_pct: 5.0      # % of portfolio to risk per trade (in premium paid)
+
+greeks:
+  risk_free_rate: 0.05       # annualized risk-free rate for Black-Scholes
+  iv_source: "market"        # use market IV from options chain (not model)
+
+exit_rules:
+  profit_target_pct: 50      # close at 50% of max profit (common theta rule)
+  stop_loss_pct: 100         # close if premium doubles (2x loss)
+  dte_exit: 7                # close with 7 DTE remaining (avoid gamma risk)
