@@ -35,7 +35,14 @@
       "Bash(cd \"/Users/dhoua/Kraken Code 1\" && ls && echo \"---\" && ls logs/ 2>/dev/null && echo \"---venv---\" && ls .venv/bin/python 2>/dev/null && echo \"---config---\" && find . -iname \"*.yaml\" -not -path \"*/node_modules/*\" 2>/dev/null | head -20)",
       "Bash(curl -s http://localhost:8501/_stcore/health)",
       "WebFetch(domain:www.sec.gov)",
-      "Bash(curl -s -A \"kraken-ew-research dhouatchessi@gmail.com\" \"https://www.sec.gov/Archives/edgar/data/1816581/000162828026013313/oust-20251231.htm\" -o oust_10k.htm)"
+      "Bash(curl -s -A \"kraken-ew-research dhouatchessi@gmail.com\" \"https://www.sec.gov/Archives/edgar/data/1816581/000162828026013313/oust-20251231.htm\" -o oust_10k.htm)",
+      "Bash(git remote *)",
+      "Bash(git push *)",
+      "Bash(gh auth *)",
+      "Bash(ssh -T git@github.com -o BatchMode=yes -o ConnectTimeout=5)",
+      "Bash(brew install *)",
+      "Bash(git checkout *)",
+      "Bash(git branch *)"
     ]
   }
 }
