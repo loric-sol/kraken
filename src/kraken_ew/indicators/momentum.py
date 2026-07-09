@@ -100,6 +100,43 @@ def detect_divergence(df: pd.DataFrame, lookback: int = 20) -> Divergence:
     return Divergence("none", 0.0)
 
 
+@dataclass
+class MomentumRegime:
+    state: Literal["expansion", "exhaustion", "neutral"]
+    strength: float  # 0-100
+
+
+def detect_momentum_regime(df: pd.DataFrame, lookback: int = 10) -> MomentumRegime:
+    """Classify momentum as expanding, exhausting, or neutral over the last
+    `lookback` bars.
+
+    - Expansion: |MACD histogram| is growing and RSI is moving away from 50
+      -- momentum is accelerating, a continuation signal.
+    - Exhaustion: RSI is in overbought/oversold territory (>70 or <30) while
+      |MACD histogram| is shrinking -- price is still extended but the
+      momentum behind it is fading, a classic reversal warning.
+    """
+    enriched = add_momentum(df) if "macd_hist" not in df.columns else df
+    window = enriched.tail(lookback)
+    if len(window) < lookback:
+        return MomentumRegime("neutral", 0.0)
+
+    hist_abs = window["macd_hist"].abs()
+    hist_slope = hist_abs.iloc[-1] - hist_abs.iloc[0]
+    rsi_last = window["rsi"].iloc[-1]
+    rsi_dist_from_mid = abs(rsi_last - 50)
+
+    if (rsi_last > 70 or rsi_last < 30) and hist_slope < 0:
+        strength = min(100.0, abs(hist_slope) * 20 + max(0.0, rsi_dist_from_mid - 20))
+        return MomentumRegime("exhaustion", float(np.clip(strength, 0, 100)))
+
+    if hist_slope > 0 and rsi_dist_from_mid > 10:
+        strength = min(100.0, hist_slope * 20 + rsi_dist_from_mid)
+        return MomentumRegime("expansion", float(np.clip(strength, 0, 100)))
+
+    return MomentumRegime("neutral", 0.0)
+
+
 def momentum_score(df: pd.DataFrame, direction: Literal["long", "short"]) -> float:
     """0-100 score for the "momentum confirmation" composite component,
     given a candidate trade direction. Combines RSI/MACD/StochRSI alignment

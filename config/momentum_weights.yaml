@@ -1,0 +1,22 @@
+# Weights for the standalone momentum-engine strategy
+# (scoring/momentum_strategy.py) -- a scored strategy parallel to the
+# Elliott Wave composite in scoring_weights.yaml, but with no wave counting
+# or Fibonacci confluence. Must sum to 1.0.
+weights:
+  momentum: 0.45      # RSI/MACD/StochRSI alignment + divergence + expansion/exhaustion regime
+  trend: 0.25         # EMA 20/50/200 alignment and slope
+  volume: 0.20        # VWAP/OBV confirmation
+  volatility: 0.10    # penalize entries in a low-volatility / choppy regime
+
+indicators:
+  rsi_period: 14
+  macd: [12, 26, 9]
+  stoch_rsi_period: 14
+  ema_periods: [20, 50, 200]
+  atr_period: 14
+  bollinger: [20, 2.0]
+
+regime:
+  lookback: 10
+  exhaustion_penalty: 25   # points subtracted from the momentum component when regime == exhaustion
+  expansion_bonus: 15      # points added to the momentum component when regime == expansion

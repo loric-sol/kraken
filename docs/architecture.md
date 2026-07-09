@@ -103,6 +103,24 @@ The result is a `ScoreBreakdown` dataclass carrying both the total and every
 component's raw + weighted value, plus metadata (wave label, rule
 violations, pivot count) — this is what makes every decision explainable.
 
+### Momentum-engine strategy (built, parallel to EW)
+`scoring/momentum_strategy.py` is a second, independent scored strategy for
+the falsification comparison: no wave counting or Fibonacci confluence, just
+`config/momentum_weights.yaml`-weighted momentum (RSI/MACD/StochRSI
+alignment + divergence + an expansion/exhaustion regime classifier added to
+`indicators/momentum.py`), trend, volume, and volatility-regime components.
+Direction comes from the EMA trend stack (falling back to MACD sign when the
+stack is sideways) rather than a wave count. It exists so
+`backtest/run_backtest.py` compares EW against a *quantified* momentum
+strategy (`momentum_engine`), not just the single-indicator RSI-cross
+baseline (`momentum` in `backtest/baselines.py`) — per the project's
+constraint to compare against real alternatives, not a strawman. Signal
+generation reuses `backtest/strategy_signals.build_signals` directly (it's
+already strategy-agnostic); only score computation
+(`backtest/momentum_strategy_signals.rolling_momentum_score_series`) is
+momentum-specific. Not yet wired into `live/paper_runner.py` — that runner
+is still EW-only.
+
 ### Decision log (Phase 1)
 `decisionlog/logger.py` writes a JSON + markdown record for every score
 check, paper trade, or (future) live trade, satisfying the "AI agent

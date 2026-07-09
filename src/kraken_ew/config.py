@@ -58,6 +58,13 @@ class ScoringConfig:
 
 
 @dataclass
+class MomentumStrategyConfig:
+    weights: dict[str, float]
+    indicators: dict
+    regime: dict
+
+
+@dataclass
 class RiskConfig:
     position_sizing: dict
     stop_loss: dict
@@ -100,6 +107,15 @@ def load_scoring_config() -> ScoringConfig:
         fibonacci=raw["fibonacci"],
         indicators=raw["indicators"],
     )
+
+
+def load_momentum_strategy_config() -> MomentumStrategyConfig:
+    raw = _load_yaml("momentum_weights.yaml")
+    weights = raw["weights"]
+    total = sum(weights.values())
+    if abs(total - 1.0) > 1e-6:
+        raise ValueError(f"momentum strategy weights must sum to 1.0, got {total}")
+    return MomentumStrategyConfig(weights=weights, indicators=raw["indicators"], regime=raw["regime"])
 
 
 def load_risk_config() -> RiskConfig:

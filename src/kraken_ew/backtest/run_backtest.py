@@ -11,8 +11,9 @@ import pandas as pd
 import vectorbt as vbt
 
 from kraken_ew.backtest import baselines
+from kraken_ew.backtest.momentum_strategy_signals import rolling_momentum_score_series
 from kraken_ew.backtest.strategy_signals import build_signals, rolling_score_series
-from kraken_ew.config import load_risk_config, load_scoring_config
+from kraken_ew.config import load_momentum_strategy_config, load_risk_config, load_scoring_config
 from kraken_ew.data import ohlcv_store
 
 INIT_CASH = 10_000.0
@@ -44,6 +45,7 @@ def _infer_freq(ts: pd.Series) -> str:
 
 def run_comparison(pair: str, df: pd.DataFrame) -> pd.DataFrame:
     scoring_config = load_scoring_config()
+    momentum_config = load_momentum_strategy_config()
     risk_config = load_risk_config()
 
     close = df["close"]
@@ -90,12 +92,37 @@ def run_comparison(pair: str, df: pd.DataFrame) -> pd.DataFrame:
     pf_ema = vbt.Portfolio.from_signals(close, entries=ema_entries, exits=ema_exits, init_cash=INIT_CASH, fees=FEES, freq=freq)
     results.append(_portfolio_stats("ema_crossover", pf_ema))
 
-    # --- Momentum (RSI) ---
+    # --- Momentum (RSI) baseline ---
     mom_entries, mom_exits = baselines.momentum_signals(df)
     mom_entries.index = close.index
     mom_exits.index = close.index
     pf_mom = vbt.Portfolio.from_signals(close, entries=mom_entries, exits=mom_exits, init_cash=INIT_CASH, fees=FEES, freq=freq)
     results.append(_portfolio_stats("momentum", pf_mom))
+
+    # --- Momentum engine: scored strategy (RSI+MACD+StochRSI+divergence+
+    # regime, trend, volume, volatility), parallel to the EW composite ---
+    mom_eng_scores = rolling_momentum_score_series(df, momentum_config)
+    mom_eng_entries, mom_eng_exits, mom_eng_short_entries, mom_eng_short_exits = build_signals(
+        df,
+        mom_eng_scores,
+        long_entry=risk_config.score_thresholds["long_entry"],
+        short_entry=risk_config.score_thresholds["short_entry"],
+        exit_threshold=risk_config.score_thresholds["exit"],
+    )
+    for s in (mom_eng_entries, mom_eng_exits, mom_eng_short_entries, mom_eng_short_exits):
+        s.index = close.index
+
+    pf_mom_eng = vbt.Portfolio.from_signals(
+        close,
+        entries=mom_eng_entries,
+        exits=mom_eng_exits,
+        short_entries=mom_eng_short_entries,
+        short_exits=mom_eng_short_exits,
+        init_cash=INIT_CASH,
+        fees=FEES,
+        freq=freq,
+    )
+    results.append(_portfolio_stats("momentum_engine", pf_mom_eng))
 
     out = pd.DataFrame(results).set_index("strategy")
     out["pair"] = pair
