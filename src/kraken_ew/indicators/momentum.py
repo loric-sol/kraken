@@ -100,6 +100,38 @@ def detect_divergence(df: pd.DataFrame, lookback: int = 20) -> Divergence:
     return Divergence("none", 0.0)
 
 
+MOMENTUM_SCREEN_RSI_BULL = 55.0
+MOMENTUM_SCREEN_RSI_BEAR = 45.0
+
+
+def momentum_direction(df: pd.DataFrame) -> tuple[Literal["bullish", "bearish", "neutral"], float]:
+    """Direction-agnostic RSI/MACD read -- zero reference to wave counts or
+    any precomputed direction. Exists so a broken wave count can never hide
+    genuinely strong momentum (e.g. a pair whose composite `direction` is
+    mislabeled "short" by the wave engine while RSI/MACD are strongly bullish).
+
+    bullish: rsi >= MOMENTUM_SCREEN_RSI_BULL and macd > macd_signal
+    bearish: rsi <= MOMENTUM_SCREEN_RSI_BEAR and macd < macd_signal
+    else: neutral
+
+    strength = |rsi - 50| * 2, clipped to 100 -- RSI is already a reasonable
+    0-100 strength proxy, no new weighted formula needed.
+    """
+    enriched = add_momentum(df) if "rsi" not in df.columns else df
+    last = enriched.iloc[-1]
+    r = float(last["rsi"])
+    macd_bull = bool(last["macd"] > last["macd_signal"])
+
+    if r >= MOMENTUM_SCREEN_RSI_BULL and macd_bull:
+        direction: Literal["bullish", "bearish", "neutral"] = "bullish"
+    elif r <= MOMENTUM_SCREEN_RSI_BEAR and not macd_bull:
+        direction = "bearish"
+    else:
+        direction = "neutral"
+
+    return direction, float(min(100.0, abs(r - 50) * 2))
+
+
 def momentum_score(df: pd.DataFrame, direction: Literal["long", "short"]) -> float:
     """0-100 score for the "momentum confirmation" composite component,
     given a candidate trade direction. Combines RSI/MACD/StochRSI alignment

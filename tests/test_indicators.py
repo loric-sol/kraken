@@ -1,3 +1,6 @@
+import numpy as np
+import pandas as pd
+
 from kraken_ew.indicators import momentum, trend, volatility, volume
 
 
@@ -33,6 +36,32 @@ def test_momentum_score_long_in_uptrend(uptrend_df):
     score = momentum.momentum_score(uptrend_df, direction="long")
     assert 0 <= score <= 100
     assert score > 50  # uptrend should favor a long momentum score
+
+
+def test_momentum_direction_bullish_in_uptrend(uptrend_df):
+    direction, strength = momentum.momentum_direction(uptrend_df)
+    assert direction == "bullish"
+    assert strength > 0
+
+
+def test_momentum_direction_bearish_in_downtrend(downtrend_df):
+    direction, strength = momentum.momentum_direction(downtrend_df)
+    assert direction == "bearish"
+    assert strength > 0
+
+
+def test_momentum_direction_neutral_when_flat():
+    n = 100
+    close = 100 + np.sin(np.arange(n) * 0.01) * 0.01  # near-flat, RSI hovers ~50
+    df = pd.DataFrame(
+        {
+            "ts": np.arange(n) * 3600,
+            "open": close, "high": close + 0.01, "low": close - 0.01,
+            "close": close, "volume": np.full(n, 1000.0),
+        }
+    )
+    direction, _ = momentum.momentum_direction(df)
+    assert direction == "neutral"
 
 
 def test_atr_positive(uptrend_df):

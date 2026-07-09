@@ -93,6 +93,20 @@ with tab_scanner:
                 + ", ".join(f"{r.display_label} (+{r.daily_rsi_jump:.0f}pt)" for r in jumps)
             )
 
+        bull_hits = [r for r in rows if r.momentum_screen_hit == "bullish"]
+        bear_hits = [r for r in rows if r.momentum_screen_hit == "bearish"]
+        if bull_hits or bear_hits:
+            lines = [
+                "⚡ **Momentum screen** (RSI/MACD only — **NOT** the wave/composite "
+                "signal; can catch pairs whose wave-implied `direction` is wrong, "
+                "e.g. a broken wave count mislabeling a strong move as \"short\"):"
+            ]
+            if bull_hits:
+                lines.append("- Bullish: " + ", ".join(f"{r.display_label} ({r.momentum_screen_detail})" for r in bull_hits))
+            if bear_hits:
+                lines.append("- Bearish: " + ", ".join(f"{r.display_label} ({r.momentum_screen_detail})" for r in bear_hits))
+            st.warning("\n".join(lines))
+
         df = pd.DataFrame(
             [
                 {

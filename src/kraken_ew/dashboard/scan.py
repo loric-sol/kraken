@@ -19,7 +19,7 @@ import pandas as pd
 
 from kraken_ew.config import AppConfig
 from kraken_ew.data import kraken_rest, ohlcv_store
-from kraken_ew.indicators.momentum import add_momentum
+from kraken_ew.indicators.momentum import add_momentum, momentum_direction
 from kraken_ew.indicators.volatility import atr
 from kraken_ew.indicators.volume import add_volume
 from kraken_ew.scoring.composite import ScoreBreakdown, compute_score
@@ -53,6 +53,16 @@ TIER_PRIORITY = 60.0
 # 39->55 one-candle daily RSI jump was missed by the hourly-only tiers.
 DAILY_RSI_JUMP_THRESHOLD = 15.0
 
+# Wave-independent momentum screen: flagged when >= this many of {1D,4H,1H}
+# agree on bullish or bearish momentum (RSI threshold + MACD), independent
+# of the wave-composite `direction`. 2-of-3 favors 1D+4H (trend/swing
+# context) over pure 1H noise, per this session's 1D=trend/4H=swing/1H=timing
+# framework. Added after MORPHOUSD showed RSI 75-76 on 4H/1H (rising, bullish
+# MACD) while the 1H composite `direction` was mislabeled "short" by a broken
+# wave count -- tiers require direction=="long" so that strength was
+# completely invisible regardless of score.
+MOMENTUM_SCREEN_MIN_TIMEFRAMES = 2
+
 
 @dataclass
 class BasketRow:
@@ -68,6 +78,8 @@ class BasketRow:
     low_wave_confidence: bool = False
     display_label: str = ""
     daily_rsi_jump: float | None = None  # points risen vs prior daily bar, if > threshold
+    momentum_screen_hit: str = ""       # "", "bullish", "bearish" -- independent of wave `direction`
+    momentum_screen_detail: str = ""    # e.g. "4H:bullish(RSI 75↑) 1H:bullish(RSI 76↑) 1D:neutral(RSI 51↓)"
 
 
 @dataclass
@@ -131,6 +143,35 @@ def _tier_for(pair: str, score: float, direction: str) -> str:
     return ""
 
 
+def _momentum_screen(
+    df_d: pd.DataFrame | None,
+    df_4h: pd.DataFrame | None,
+    df_1h: pd.DataFrame,
+) -> tuple[str, str]:
+    """Wave-independent momentum read across 1D/4H/1H -- never touches
+    compute_score()/ScoreBreakdown.direction. Returns ("bullish"/"bearish"/"",
+    detail_string). See MOMENTUM_SCREEN_MIN_TIMEFRAMES docstring for why."""
+    reads: dict[str, tuple[str, float, bool]] = {}
+    for label, tf_df in (("1D", df_d), ("4H", df_4h), ("1H", df_1h)):
+        if tf_df is None or len(tf_df) < 2:
+            continue
+        dm = add_momentum(tf_df.copy())
+        direction, _ = momentum_direction(dm)
+        rsi_val = float(dm["rsi"].iloc[-1])
+        rising = rsi_val > float(dm["rsi"].iloc[-2])
+        reads[label] = (direction, rsi_val, rising)
+
+    bull = sum(1 for d, _, up in reads.values() if d == "bullish" and up)
+    bear = sum(1 for d, _, up in reads.values() if d == "bearish" and not up)
+    detail = " ".join(f"{tf}:{d}(RSI {r:.0f}{'↑' if up else '↓'})" for tf, (d, r, up) in reads.items())
+
+    if bull >= MOMENTUM_SCREEN_MIN_TIMEFRAMES:
+        return "bullish", detail
+    if bear >= MOMENTUM_SCREEN_MIN_TIMEFRAMES:
+        return "bearish", detail
+    return "", detail
+
+
 def scan_basket(
     con,
     config: AppConfig,
@@ -178,6 +219,7 @@ def scan_basket(
         obv_rising = bool(dv["obv"].iloc[-1] > dv["obv"].iloc[-6])
 
         daily_jump = None
+        df_d = None
         if check_daily_jump:
             df_d = ohlcv_store.read_ohlcv(con, pair, 1440)
             if len(df_d) >= 2:
@@ -185,6 +227,13 @@ def scan_basket(
                 jump = float(dm_d["rsi"].iloc[-1] - dm_d["rsi"].iloc[-2])
                 if jump > DAILY_RSI_JUMP_THRESHOLD:
                     daily_jump = jump
+
+        # Momentum screen needs 1D context per this project's timeframe
+        # philosophy -- skip (leave "") rather than screen off 1H alone when
+        # daily data wasn't fetched this run.
+        momentum_hit, momentum_detail = "", ""
+        if check_daily_jump and df_d is not None and len(df_d) >= 2:
+            momentum_hit, momentum_detail = _momentum_screen(df_d, _resample_4h(df), df)
 
         rows.append(
             BasketRow(
@@ -200,6 +249,8 @@ def scan_basket(
                 low_wave_confidence=pair in LOW_WAVE_CONFIDENCE and bool(bd.metadata.get("wave_rule_violations")),
                 display_label=DISPLAY_LABEL.get(pair, pair.replace("USD", "")),
                 daily_rsi_jump=daily_jump,
+                momentum_screen_hit=momentum_hit,
+                momentum_screen_detail=momentum_detail,
             )
         )
 
