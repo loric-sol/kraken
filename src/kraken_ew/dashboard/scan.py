@@ -29,13 +29,29 @@ DEFAULT_BASKET = [
     "LINKUSD", "DOTUSD", "ADAUSD", "XXRPZUSD", "UNIUSD",
     "ATOMUSD", "NEARUSD", "ARBUSD", "OPUSD", "SUIUSD",
     "APTUSD", "INJUSD", "XLMUSD", "CFGUSD", "JUPUSD",
+    "PENGUUSD", "MORPHOUSD", "AEROUSD", "SYRUPUSD", "XPLUSD",
+    "PYTHUSD", "HYPEUSD",
 ]
 
-PRIORITY_WATCHLIST = ["SOLUSD", "DOTUSD"]
+# Kraken uses ISO-style asset codes (XBT, XDG, XXRPZ) for a couple of pairs;
+# display the common ticker instead everywhere in the UI.
+DISPLAY_LABEL = {"XDGUSD": "DOGE", "XXRPZUSD": "XRP", "XBTUSD": "BTC"}
+
+# Pairs whose wave counts have repeatedly shown rule violations on every
+# timeframe checked -- still scanned normally, but flagged as low-confidence
+# rather than trusted at face value.
+LOW_WAVE_CONFIDENCE = {"MORPHOUSD", "AEROUSD", "SYRUPUSD"}
+
+PRIORITY_WATCHLIST = ["SOLUSD", "DOTUSD", "XPLUSD", "HYPEUSD", "ARBUSD"]
 
 TIER_SIGNAL = 70.0
 TIER_APPROACHING = 65.0
 TIER_PRIORITY = 60.0
+
+# A pair whose DAILY RSI jumps more than this many points vs. the prior
+# daily bar gets flagged regardless of hourly score -- added after ARBUSD's
+# 39->55 one-candle daily RSI jump was missed by the hourly-only tiers.
+DAILY_RSI_JUMP_THRESHOLD = 15.0
 
 
 @dataclass
@@ -45,9 +61,28 @@ class BasketRow:
     score: float
     direction: str
     rsi: float
+    rsi_rising: bool
     macd_bull: bool
     obv_rising: bool
     tier: str  # "", "priority", "approaching", "signal"
+    low_wave_confidence: bool = False
+    display_label: str = ""
+    daily_rsi_jump: float | None = None  # points risen vs prior daily bar, if > threshold
+
+
+@dataclass
+class BreadthSummary:
+    total: int
+    rsi_rising: int
+    rsi_above_40: int
+    macd_bullish: int
+
+    def __str__(self) -> str:
+        return (
+            f"{self.rsi_rising}/{self.total} RSI rising | "
+            f"{self.rsi_above_40}/{self.total} RSI>=40 | "
+            f"{self.macd_bullish}/{self.total} MACD bullish"
+        )
 
 
 @dataclass
@@ -101,10 +136,19 @@ def scan_basket(
     config: AppConfig,
     pairs: list[str] | None = None,
     fetch: bool = True,
-) -> list[BasketRow]:
-    """Score every pair in `pairs` (default DEFAULT_BASKET) on hourly data.
+    check_daily_jump: bool = True,
+) -> tuple[list[BasketRow], BreadthSummary]:
+    """Score every pair in `pairs` (default DEFAULT_BASKET) on hourly data,
+    plus a basket-wide breadth summary (RSI rising / RSI>=40 / MACD bullish
+    counts). Breadth matters more than any single pair's score -- isolated
+    fires have repeatedly faded all session; the one entry that held (ADAUSD)
+    was backed by 24/27 RSI rising, 26/27 RSI>=40, 25/27 MACD bullish.
+
     If `fetch` is True, pulls fresh candles from Kraken first; set False to
-    score whatever is already in the local DuckDB store (faster, offline)."""
+    score whatever is already in the local DuckDB store (faster, offline).
+    If `check_daily_jump` is True, also fetches daily candles for every pair
+    to flag a >DAILY_RSI_JUMP_THRESHOLD point daily RSI jump regardless of
+    hourly score (added after ARBUSD's 39->55 jump was missed on hourly alone)."""
     pairs = pairs or DEFAULT_BASKET
     rows: list[BasketRow] = []
 
@@ -113,6 +157,9 @@ def scan_basket(
             try:
                 candles, _ = kraken_rest.get_ohlc(pair, interval=60)
                 ohlcv_store.upsert_ohlcv(con, pair, 60, candles)
+                if check_daily_jump:
+                    daily_candles, _ = kraken_rest.get_ohlc(pair, interval=1440)
+                    ohlcv_store.upsert_ohlcv(con, pair, 1440, daily_candles)
             except Exception:
                 continue
 
@@ -126,8 +173,18 @@ def scan_basket(
 
         price = float(df["close"].iloc[-1])
         rsi = float(dm["rsi"].iloc[-1])
+        rsi_prev = float(dm["rsi"].iloc[-2])
         macd_bull = bool(dm["macd"].iloc[-1] > dm["macd_signal"].iloc[-1])
         obv_rising = bool(dv["obv"].iloc[-1] > dv["obv"].iloc[-6])
+
+        daily_jump = None
+        if check_daily_jump:
+            df_d = ohlcv_store.read_ohlcv(con, pair, 1440)
+            if len(df_d) >= 2:
+                dm_d = add_momentum(df_d.copy())
+                jump = float(dm_d["rsi"].iloc[-1] - dm_d["rsi"].iloc[-2])
+                if jump > DAILY_RSI_JUMP_THRESHOLD:
+                    daily_jump = jump
 
         rows.append(
             BasketRow(
@@ -136,14 +193,25 @@ def scan_basket(
                 score=bd.total,
                 direction=bd.direction,
                 rsi=rsi,
+                rsi_rising=rsi > rsi_prev,
                 macd_bull=macd_bull,
                 obv_rising=obv_rising,
                 tier=_tier_for(pair, bd.total, bd.direction),
+                low_wave_confidence=pair in LOW_WAVE_CONFIDENCE and bool(bd.metadata.get("wave_rule_violations")),
+                display_label=DISPLAY_LABEL.get(pair, pair.replace("USD", "")),
+                daily_rsi_jump=daily_jump,
             )
         )
 
     rows.sort(key=lambda r: -r.score)
-    return rows
+
+    breadth = BreadthSummary(
+        total=len(rows),
+        rsi_rising=sum(1 for r in rows if r.rsi_rising),
+        rsi_above_40=sum(1 for r in rows if r.rsi >= 40),
+        macd_bullish=sum(1 for r in rows if r.macd_bull),
+    )
+    return rows, breadth
 
 
 def _resample_4h(df_hourly: pd.DataFrame) -> pd.DataFrame:

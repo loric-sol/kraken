@@ -60,14 +60,15 @@ with tab_scanner:
     with col2:
         st.write(
             f"Basket: {len(DEFAULT_BASKET)} pairs · "
-            f"Tiers: ⭐{TIER_PRIORITY:.0f} (SOL/DOT) · 👀{TIER_APPROACHING:.0f} · 🚨{TIER_SIGNAL:.0f}"
+            f"Tiers: ⭐{TIER_PRIORITY:.0f} (priority watch) · 👀{TIER_APPROACHING:.0f} · 🚨{TIER_SIGNAL:.0f}"
         )
 
     if run_clicked:
         with st.spinner("Fetching + scoring basket..."):
             with ohlcv_store.connect() as con:
-                rows = scan_basket(con, config, fetch=not use_cache)
+                rows, breadth = scan_basket(con, config, fetch=not use_cache)
         st.session_state["scan_rows"] = rows
+        st.session_state["scan_breadth"] = breadth
         st.session_state["scan_time"] = pd.Timestamp.utcnow()
 
     rows = st.session_state.get("scan_rows")
@@ -75,17 +76,35 @@ with tab_scanner:
         st.info("Click **Run Scan** to fetch live data and score the basket.")
     else:
         st.caption(f"Last scanned: {st.session_state['scan_time']:%Y-%m-%d %H:%M UTC}")
+
+        breadth = st.session_state.get("scan_breadth")
+        if breadth:
+            st.info(
+                f"**Breadth:** {breadth}  \n"
+                "A single pair firing while the rest of the basket has falling RSI has "
+                "repeatedly faded this session — the entry that held (ADAUSD) had strong "
+                "breadth (24/27 rising, 26/27 ≥40, 25/27 bullish MACD) behind it."
+            )
+
+        jumps = [r for r in rows if r.daily_rsi_jump]
+        if jumps:
+            st.warning(
+                "📈 **Daily RSI jump** (>15pt vs prior daily bar, may not show on hourly score): "
+                + ", ".join(f"{r.display_label} (+{r.daily_rsi_jump:.0f}pt)" for r in jumps)
+            )
+
         df = pd.DataFrame(
             [
                 {
-                    "Pair": r.pair,
+                    "Pair": r.display_label,
                     "Price": r.price,
                     "Score": round(r.score, 1),
                     "Direction": r.direction,
                     "RSI": round(r.rsi, 0),
+                    "RSI dir": "↑" if r.rsi_rising else "↓",
                     "MACD": "bull" if r.macd_bull else "bear",
                     "OBV": "↑" if r.obv_rising else "↓",
-                    "Tier": TIER_LABELS[r.tier],
+                    "Tier": TIER_LABELS[r.tier] + (" ⚠️ low wave-conf" if r.low_wave_confidence else ""),
                 }
                 for r in rows
             ]
